@@ -1,0 +1,93 @@
+# This file contains the jenkins configuration
+# Please do not modify anything unless you know
+# what are you doing.
+
+# Documentation documentation:
+#   http://127.0.0.1:8080/configuration-as-code/reference
+
+# You can setup the security realm like ldap
+# or active directory. Pay attention that you need
+# The related plugins installed
+
+jenkins:
+  agentProtocols:
+    - "JNLP4-connect"
+    - "Ping"
+
+  credentials:
+    system:
+      domainCredentials:
+        - credentials:
+            - basicSSHUserPrivateKey:
+                scope: GLOBAL
+                id: jenkins-github-ssh
+                username:
+                passphrase:
+                description: "SSH key for GitHub"
+                privateKeySource:
+                  directEntry:
+                    privateKey: ${JENKINS_GITHUB_SSH} # Set it up in docker-compose
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: ${JENKINS_ADMIN_ID} # You can use environments directly here using this convention
+          password: ${JENKINS_ADMIN_PASSWORD}
+
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+
+  remotingSecurity:
+    enabled: true
+
+  clouds:
+    - docker:
+        containerCap: 5
+        dockerApi:
+          connectTimeout: 60
+          dockerHost:
+            uri: "tcp://host.docker.internal:2375"
+          readTimeout: 60
+        exposeDockerHost: true
+        name: "docker"
+        templates:
+          - connector: "attach"
+            dockerTemplateBase:
+              cpuPeriod: 0
+              cpuQuota: 0
+              image: "jenkins/agent"
+            instanceCapStr: "10"
+            labelString: "agent"
+            mode: EXCLUSIVE
+            name: "Jenkins Agent"
+            pullStrategy: PULL_ALWAYS
+            pullTimeout: 300
+            remoteFs: "/home/jenkins/agent"
+
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: false
+  disableRememberMe: false
+  labelAtoms:
+    - name: "!!!DO_NOT_USE!!!"
+    - name: "agent"
+    - name: "docker_in_docker"
+    - name: "master"
+  labelString: "!!!DO_NOT_USE!!!"
+  numExecutors: 0
+
+jobs:
+  - file: /pipeline.groovy
+
+unclassified:
+  locale:
+    ignoreAcceptLanguage: true
+    systemLocale: "en"
+
+  location:
+    # The unclassified.location.url will specifies the jenkins URL.
+    url: http://127.0.0.1:8080/ # The url must be in http://address:port/ format.
